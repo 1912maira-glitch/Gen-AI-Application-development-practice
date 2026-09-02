@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import requests
+from ipwhois import IPWhois
 from monovm_whois import WhoisHandler
 
 
@@ -375,14 +376,88 @@ def get_whois(
     target: str,
 ) -> dict:
     """
-    Collect WHOIS/RDAP-backed registration intelligence where the
-    selected library supports it.
+    Collect WHOIS/RDAP intelligence.
 
-    The selected whois-python package provides domain WHOIS/RDAP
-    functionality. IP targets therefore return a clear unsupported
-    result rather than being routed through another intelligence
-    provider or guessed.
+    IP addresses use the ipwhois library.
+    Domains and URL hostnames use the domain WHOIS library.
+
+    Returns:
+        {
+            "source": "WHOIS",
+            "success": True/False,
+            "data": {...},
+            "error": None or "..."
+        }
     """
+
+    # ------------------------------------------------------------
+    # IP ADDRESS
+    # ------------------------------------------------------------
+    if target_type == "IP Address":
+        try:
+            ip_result = IPWhois(
+                target,
+                timeout=15,
+            ).lookup_rdap(
+                inc_raw=True,
+                retry_count=2,
+            )
+
+            if not isinstance(ip_result, dict):
+                return _result(
+                    "WHOIS",
+                    False,
+                    error="IP WHOIS returned an unexpected response.",
+                )
+
+            # Keep the useful network-registration information while
+            # avoiding unnecessary raw payload size.
+            data = {
+                "query": target,
+                "lookup_type": "RDAP",
+                "asn": ip_result.get("asn"),
+                "asn_description": ip_result.get(
+                    "asn_description"
+                ),
+                "asn_country_code": ip_result.get(
+                    "asn_country_code"
+                ),
+                "asn_registry": ip_result.get(
+                    "asn_registry"
+                ),
+                "network": _json_safe(
+                    ip_result.get("network")
+                ),
+                "entities": _json_safe(
+                    ip_result.get("entities")
+                ),
+                "objects": _json_safe(
+                    ip_result.get("objects")
+                ),
+                "raw": _json_safe(
+                    ip_result.get("raw")
+                ),
+            }
+
+            return _result(
+                "WHOIS",
+                True,
+                data,
+            )
+
+        except Exception as exc:
+            return _result(
+                "WHOIS",
+                False,
+                error=(
+                    f"IP WHOIS/RDAP lookup failed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            )
+
+    # ------------------------------------------------------------
+    # DOMAIN / URL
+    # ------------------------------------------------------------
     domain = _domain_from_target(
         target_type,
         target,
@@ -393,8 +468,7 @@ def get_whois(
             "WHOIS",
             False,
             error=(
-                "WHOIS lookup is not supported for IP addresses "
-                "by the selected WHOIS library."
+                "Could not extract a domain for WHOIS lookup."
             ),
         )
 
