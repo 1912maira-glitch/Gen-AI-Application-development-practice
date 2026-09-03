@@ -78,7 +78,7 @@ def generate_post(api_key, platform, content_type, tone, target_audience, topic)
     user_prompt = f"Topic details: {topic}"
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
