@@ -1,34 +1,60 @@
 # ✍️ AI Content Assistant
 
-An intuitive, lightweight web application built with **Streamlit** and **Groq** (powered by `llama-3.3-70b-versatile`). It automatically generates tailored social media posts, captions, structure, and hashtags based on user preferences.
+An end-to-end, lightweight generative AI web application built with **Streamlit** and powered by **Groq's Ultra-Fast Inference Engine** running the **`gpt-oss-120b`** open-weights model. 
+
+The application enables marketers, developers, and creators to instantly generate context-aware, platform-optimized social media posts, captions, call-to-actions, and relevant hashtags based on tailored user parameters.
 
 ---
 
-## 🌟 Features
-
-* **Multi-Platform Support:** Tailored posts for LinkedIn, Instagram, Twitter/X, Facebook, and Blogs.
-* **Customizable Parameters:** Select content type, audience, tone, and specific topics.
-* **High-Speed AI Generation:** Uses Groq's lightning-fast Llama 3.3 model inference.
-* **Hashtag & CTA Generation:** Automatically includes targeted hashtags and call-to-actions.
+## 📸 Overview & Interface
++-----------------------------------------------------------------------+
+|  ✍️ AI Content Assistant                                              |
+|  Generate tailored posts, captions, and hashtags instantly.          |
++-----------------------------------------------------------------------+
+|  [Platform]      [Tone]          |  [Generated Output]                |
+|  - LinkedIn      - Professional  |  🚀 I reclaimed my weekends by     |
+|  - Instagram     - Casual        |  automating the boring stuff!      |
+|  - Twitter / X   - Witty         |                                    |
+|                                  |  - Hook & Storyline                |
+|  [Content Type]  [Target]        |  - Structured Key Points           |
+|  - Educational   - Developers    |  - Call To Action (CTA)            |
+|  - Storytelling  - Marketers     |  - High-Reach Hashtags             |
++-----------------------------------------------------------------------+
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Key Features
 
-* **Frontend & Framework:** Streamlit
-* **LLM Engine:** Groq API (`llama-3.3-70b-versatile`)
+* **Platform-Specific Optimization:** Native formatting and structure tailored for LinkedIn, Instagram, Twitter/X, Facebook, and Blog posts.
+* **Custom Audience & Tone Alignment:** Tailors communication style (Professional, Casual, Persuasive, Witty, Inspirational) to match targeted demographic profiles.
+* **Open-Source LLM Integration:** Leverages the open-weights **`openai/gpt-oss-120b`** model hosted on Groq for sub-second text generation latency.
+* **Structured Output Pipeline:** Guarantees a compelling hook, organized body text, driving CTA, and relevant high-traffic hashtags.
+* **Zero-Persistence Privacy:** Processes requests on-the-fly without storing sensitive user keys or content parameters in external databases.
+
+---
+
+## 🛠️ Tech Stack & Dependencies
+
+* **Frontend Framework:** [Streamlit](https://streamlit.io/) (v1.30.0+)
+* **Inference Engine:** [Groq Cloud API](https://console.groq.com/)
+* **Foundation Model:** `openai/gpt-oss-120b`
 * **Language:** Python 3.9+
 
 ---
 
-## 🚀 Getting Started
+## 🏗️ Architecture & Workflow
 
-### 1. Prerequisites
-Get a free Groq API key from the [Groq Console](https://console.groq.com/).
+1. **User Input:** User specifies target platform, tone, audience, content category, and key topic parameters.
+2. **Prompt Construction:** The application dynamic prompt generator compiles system guidelines and context rules.
+3. **Groq Inference Engine:** Sends raw parameters via the Groq SDK to execute low-latency inference on the `openai/gpt-oss-120b` model.
+4. **Rendering:** Markdown output with rich text formatting, emojis, and hashtags is displayed directly on the Streamlit interface.
 
-### 2. Local Installation
+---
 
-Clone the repository and navigate to the project directory:
-```bash
-git clone [https://github.com/your-username/AI-content-assistant.git](https://github.com/your-username/AI-content-assistant.git)
-cd AI-content-assistant
+## 🚀 Quickstart Guide
+
+### Prerequisites
+1. Python 3.9 or higher installed on your local machine.
+2. A free Groq API key (Obtain one from [Groq Console](https://console.groq.com/)).
+
+---
