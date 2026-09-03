@@ -1,60 +1,93 @@
 # ✍️ AI Content Assistant
 
-An end-to-end, lightweight generative AI web application built with **Streamlit** and powered by **Groq's Ultra-Fast Inference Engine** running the **`gpt-oss-120b`** open-weights model. 
+An AI-powered content generation application that helps users create **tailored social media posts, captions, and hashtags** based on their selected platform, content type, tone, target audience, and topic.
 
-The application enables marketers, developers, and creators to instantly generate context-aware, platform-optimized social media posts, captions, call-to-actions, and relevant hashtags based on tailored user parameters.
-
----
-
-## 📸 Overview & Interface
-+-----------------------------------------------------------------------+
-|  ✍️ AI Content Assistant                                              |
-|  Generate tailored posts, captions, and hashtags instantly.          |
-+-----------------------------------------------------------------------+
-|  [Platform]      [Tone]          |  [Generated Output]                |
-|  - LinkedIn      - Professional  |  🚀 I reclaimed my weekends by     |
-|  - Instagram     - Casual        |  automating the boring stuff!      |
-|  - Twitter / X   - Witty         |                                    |
-|                                  |  - Hook & Storyline                |
-|  [Content Type]  [Target]        |  - Structured Key Points           |
-|  - Educational   - Developers    |  - Call To Action (CTA)            |
-|  - Storytelling  - Marketers     |  - High-Reach Hashtags             |
-+-----------------------------------------------------------------------+
+The application uses **Streamlit** for the user interface, **Groq API** for AI-powered generation, and the **openai/gpt-oss-120b** model to generate high-quality content.
 
 ---
 
-## ✨ Key Features
+## 🚀 Features
 
-* **Platform-Specific Optimization:** Native formatting and structure tailored for LinkedIn, Instagram, Twitter/X, Facebook, and Blog posts.
-* **Custom Audience & Tone Alignment:** Tailors communication style (Professional, Casual, Persuasive, Witty, Inspirational) to match targeted demographic profiles.
-* **Open-Source LLM Integration:** Leverages the open-weights **`openai/gpt-oss-120b`** model hosted on Groq for sub-second text generation latency.
-* **Structured Output Pipeline:** Guarantees a compelling hook, organized body text, driving CTA, and relevant high-traffic hashtags.
-* **Zero-Persistence Privacy:** Processes requests on-the-fly without storing sensitive user keys or content parameters in external databases.
-
----
-
-## 🛠️ Tech Stack & Dependencies
-
-* **Frontend Framework:** [Streamlit](https://streamlit.io/) (v1.30.0+)
-* **Inference Engine:** [Groq Cloud API](https://console.groq.com/)
-* **Foundation Model:** `openai/gpt-oss-120b`
-* **Language:** Python 3.9+
-
----
-
-## 🏗️ Architecture & Workflow
-
-1. **User Input:** User specifies target platform, tone, audience, content category, and key topic parameters.
-2. **Prompt Construction:** The application dynamic prompt generator compiles system guidelines and context rules.
-3. **Groq Inference Engine:** Sends raw parameters via the Groq SDK to execute low-latency inference on the `openai/gpt-oss-120b` model.
-4. **Rendering:** Markdown output with rich text formatting, emojis, and hashtags is displayed directly on the Streamlit interface.
+- ✍️ Generate AI-powered content instantly
+- 📱 Support multiple content platforms
+- 🎯 Select a specific content type
+- 🎨 Customize the writing tone
+- 👥 Define a target audience
+- 📝 Provide a topic or key points
+- #️⃣ Automatically generate relevant hashtags
+- 📢 Include a hook, main body, and Call to Action (CTA)
+- 🔐 Secure API key input using password-type field
+- ⚡ Fast content generation using Groq
+- 💻 Simple and clean Streamlit interface
+- ❌ Built-in validation for missing API keys and topics
+- ⚠️ Error handling for API or generation failures
 
 ---
 
-## 🚀 Quickstart Guide
+## 🖥️ Supported Platforms
 
-### Prerequisites
-1. Python 3.9 or higher installed on your local machine.
-2. A free Groq API key (Obtain one from [Groq Console](https://console.groq.com/)).
+The application can generate content for:
+
+- LinkedIn
+- Instagram
+- Twitter / X
+- Facebook
+- Blog Posts
 
 ---
+
+## 📝 Content Types
+
+Users can select from:
+
+- Educational
+- Promotional
+- Storytelling
+- Opinion / Thought Leadership
+- Announcement
+
+---
+
+## 🎨 Available Tones
+
+The application supports:
+
+- Professional
+- Casual & Friendly
+- Persuasive
+- Witty & Humorous
+- Inspirational
+
+---
+
+## 🧠 How It Works
+
+The application follows a simple AI content generation workflow:
+
+```text
+User Input
+    ↓
+Select Platform
+    ↓
+Select Content Type
+    ↓
+Select Tone
+    ↓
+Enter Target Audience
+    ↓
+Enter Topic / Key Points
+    ↓
+Groq API
+    ↓
+openai/gpt-oss-120b
+    ↓
+AI Content Generation
+    ↓
+Generated Post + CTA + Hashtags
+
+## 🛠️ Tech Stack
+
+- **Python**
+- **Streamlit** – Web UI
+- **Groq API** – LLM API
+- **openai/gpt-oss-120b** – Content generation
