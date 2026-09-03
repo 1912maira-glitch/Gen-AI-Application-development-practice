@@ -2,7 +2,7 @@
 
 An AI-powered content generation application that helps users create **tailored social media posts, captions, and hashtags** based on their selected platform, content type, tone, target audience, and topic.
 
-The application uses **Streamlit** for the user interface, **Groq API** for AI-powered generation, and the **openai/gpt-oss-120b** model to generate high-quality content.
+The application uses **Streamlit** for the user interface, **Groq API** for AI-powered generation, and the **openai/gpt-oss-120b** model to generate high-quality, platform-specific content.
 
 ---
 
@@ -10,23 +10,20 @@ The application uses **Streamlit** for the user interface, **Groq API** for AI-p
 
 - ✍️ Generate AI-powered content instantly
 - 📱 Support multiple content platforms
-- 🎯 Select a specific content type
+- 🎯 Choose from different content types
 - 🎨 Customize the writing tone
 - 👥 Define a target audience
-- 📝 Provide a topic or key points
-- #️⃣ Automatically generate relevant hashtags
-- 📢 Include a hook, main body, and Call to Action (CTA)
-- 🔐 Secure API key input using password-type field
-- ⚡ Fast content generation using Groq
-- 💻 Simple and clean Streamlit interface
-- ❌ Built-in validation for missing API keys and topics
-- ⚠️ Error handling for API or generation failures
+- 📝 Enter a topic or key points
+- #️⃣ Generate relevant hashtags automatically
+- 📢 Generate a hook, main body, and Call to Action (CTA)
+- 🔐 Secure API key input
+- ⚡ Fast AI content generation using Groq
+- 💻 Clean and simple Streamlit interface
+- ❌ Input validation and error handling
 
 ---
 
 ## 🖥️ Supported Platforms
-
-The application can generate content for:
 
 - LinkedIn
 - Instagram
@@ -38,8 +35,6 @@ The application can generate content for:
 
 ## 📝 Content Types
 
-Users can select from:
-
 - Educational
 - Promotional
 - Storytelling
@@ -49,8 +44,6 @@ Users can select from:
 ---
 
 ## 🎨 Available Tones
-
-The application supports:
 
 - Professional
 - Casual & Friendly
@@ -62,20 +55,12 @@ The application supports:
 
 ## 🧠 How It Works
 
-The application follows a simple AI content generation workflow:
-
 ```text
 User Input
     ↓
-Select Platform
+Platform + Content Type + Tone
     ↓
-Select Content Type
-    ↓
-Select Tone
-    ↓
-Enter Target Audience
-    ↓
-Enter Topic / Key Points
+Target Audience + Topic
     ↓
 Groq API
     ↓
@@ -84,10 +69,34 @@ openai/gpt-oss-120b
 AI Content Generation
     ↓
 Generated Post + CTA + Hashtags
+```
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Python**
-- **Streamlit** – Web UI
-- **Groq API** – LLM API
-- **openai/gpt-oss-120b** – Content generation
+| Technology | Purpose |
+|---|---|
+| **Python** | Application development |
+| **Streamlit** | Web interface |
+| **Groq API** | LLM API integration |
+| **openai/gpt-oss-120b** | AI content generation |
+
+---
+
+## 📚 Learning Goals
+
+This project was built to practice and demonstrate:
+
+- Generative AI application development
+- LLM API integration
+- Prompt engineering
+- Python application development
+- Streamlit UI development
+- User input handling and validation
+- AI-powered content generation
+- Building practical AI applications
+
+---
+
+⭐ If you find this project useful, consider giving the repository a star!
