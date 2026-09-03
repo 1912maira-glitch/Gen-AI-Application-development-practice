@@ -49,3 +49,13 @@ Example:
 
 ```text
 8.8.8.8
+
+## 📊 Security Verdicts
+
+ThreatLens supports four verdicts:
+
+Verdict	Meaning
+🟢 SAFE	Available evidence does not indicate significant malicious activity
+🟡 SUSPICIOUS	Evidence contains signals that warrant caution or further investigation
+🔴 MALICIOUS	Available evidence provides strong indications of malicious activity
+⚪ UNKNOWN	Evidence is insufficient for a reliable assessment
