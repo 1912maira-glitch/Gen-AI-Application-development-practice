@@ -13,7 +13,7 @@ from sentence_transformers import SentenceTransformer
 # Configuration
 # -----------------------------
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-GROQ_MODEL = "openai/gpt-oss-120b"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 80
 TOP_K = 5
@@ -234,22 +234,52 @@ st.caption(
 )
 
 with st.sidebar:
-    st.header("Settings")
+    st.header("⚙️ RAG Configuration")
+
+    st.markdown("### 🔎 Retrieval")
     top_k = st.slider(
-        "Number of chunks to retrieve",
+        "Retrieved chunks",
         min_value=2,
         max_value=10,
         value=TOP_K,
+        help="Number of relevant PDF chunks retrieved before sending context to the LLM.",
     )
 
-    st.markdown("### Stack")
+    st.caption(
+        "Higher values provide more context, while lower values keep the prompt smaller."
+    )
+
+    st.divider()
+
+    st.markdown("### 🤖 Language Model")
+    st.write(f"`{GROQ_MODEL}`")
+    st.caption("Open-weight model hosted by Groq")
+
+    st.divider()
+
+    st.markdown("### 🧠 Embedding Model")
+    st.write(f"`{EMBEDDING_MODEL}`")
+    st.caption("Runs locally in the Streamlit app")
+
+    st.divider()
+
+    st.markdown("### 🛠️ Technology Stack")
     st.write("• Streamlit")
     st.write("• PyPDF")
     st.write("• Sentence Transformers")
     st.write("• FAISS CPU")
-    st.write("• Groq")
-    st.write(f"• LLM: `{GROQ_MODEL}`")
-    st.write(f"• Embeddings: `{EMBEDDING_MODEL}`")
+    st.write("• Groq API")
+
+    st.divider()
+
+    st.markdown("### 📦 RAG Pipeline")
+    st.caption("PDF → Extract → Chunk → Embed → FAISS → Retrieve → LLM")
+
+    st.divider()
+
+    st.markdown("### ⚙️ Configuration")
+    st.write(f"Chunk size: `{CHUNK_SIZE}` tokens")
+    st.write(f"Chunk overlap: `{CHUNK_OVERLAP}` tokens")
 
 api_key = get_groq_api_key()
 
