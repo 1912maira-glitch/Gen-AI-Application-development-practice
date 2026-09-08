@@ -102,7 +102,7 @@ The application can be deployed directly to **Streamlit Community Cloud**.
 5. Deploy.
 
 🚀 Live Application
-Live Demo: https://gen-ai-application-development-pdf-rag-assistant.streamlit.app/
+    Demo: https://gen-ai-application-development-pdf-rag-assistant.streamlit.app/
 
 ```
 
