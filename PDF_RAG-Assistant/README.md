@@ -101,6 +101,9 @@ The application can be deployed directly to **Streamlit Community Cloud**.
 4. Add `GROQ_API_KEY` under **Secrets**.
 5. Deploy.
 
+🚀 Live Application
+Live Demo: https://gen-ai-application-development-pdf-rag-assistant.streamlit.app/
+
 ```
 
 ## ⚠️ Limitations
@@ -123,7 +126,4 @@ After uploading a PDF, users can ask:
 ---
 
 **Built with Python, Streamlit, FAISS, Sentence Transformers, and Groq.**
-
-🚀 Live Application
-Live Demo: https://gen-ai-application-development-pdf-rag-assistant.streamlit.app/
 
