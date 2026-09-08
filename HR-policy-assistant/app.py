@@ -1,108 +1,97 @@
-```python
-import os
-import re
-from typing import List, Dict, Tuple
-
-import faiss
-import fitz  # PyMuPDF
-import numpy as np
 import streamlit as st
-from groq import Groq
+import fitz  # PyMuPDF
+import faiss
+import numpy as np
+
 from sentence_transformers import SentenceTransformer
+from groq import Groq
 
 
 # ============================================================
-# Configuration
-# ============================================================
-
-APP_TITLE = "HR Policy Assistant"
-
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-GROQ_MODEL = "openai/gpt-oss-120b"
-
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 150
-TOP_K = 5
-
-
-# ============================================================
-# Page configuration
+# PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
-    page_title=APP_TITLE,
-    page_icon="📘",
-    layout="wide",
+    page_title="HR Policy Assistant",
+    page_icon="📚",
+    layout="wide"
 )
 
 
 # ============================================================
-# Styling
+# CUSTOM CSS
 # ============================================================
 
 st.markdown(
     """
     <style>
         .main-title {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.2rem;
         }
 
         .subtitle {
-            color: #666;
-            margin-bottom: 1.5rem;
+            color: #6b7280;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .answer-box {
+            padding: 1.2rem;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background-color: #f8fafc;
         }
 
         .source-box {
             padding: 0.8rem;
-            border-radius: 0.5rem;
-            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f1f5f9;
             margin-top: 0.5rem;
-        }
-
-        .answer-box {
-            padding: 1rem;
-            border-radius: 0.6rem;
-            border: 1px solid #ddd;
-            background-color: rgba(128, 128, 128, 0.05);
         }
     </style>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
 
 # ============================================================
-# Cached resources
+# TITLE
 # ============================================================
 
-@st.cache_resource(show_spinner="Loading embedding model...")
+st.markdown(
+    '<div class="main-title">📚 HR Policy Assistant</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="subtitle">'
+    'Ask questions about your HR policy document using Retrieval-Augmented Generation (RAG).'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# LOAD MODELS
+# ============================================================
+
+@st.cache_resource
 def load_embedding_model():
     """
-    Load the Sentence Transformer once per Streamlit process.
+    Load the Sentence Transformer embedding model.
+    Cached so it isn't loaded on every Streamlit rerun.
     """
-    return SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 
 @st.cache_resource
-def get_groq_client():
+def create_groq_client():
     """
-    Create and cache the Groq client.
-    Supports both Streamlit Cloud secrets and local environment variables.
+    Create Groq API client using Streamlit secrets.
     """
-
-    api_key = None
-
-    # Streamlit Cloud
-    try:
-        api_key = st.secrets["GROQ_API_KEY"]
-    except Exception:
-        pass
-
-    # Local development fallback
-    if not api_key:
-        api_key = os.getenv("GROQ_API_KEY")
+    api_key = st.secrets.get("GROQ_API_KEY")
 
     if not api_key:
         return None
@@ -110,133 +99,109 @@ def get_groq_client():
     return Groq(api_key=api_key)
 
 
+embedding_model = load_embedding_model()
+groq_client = create_groq_client()
+
+
 # ============================================================
-# PDF processing
+# SESSION STATE
 # ============================================================
 
-def clean_text(text: str) -> str:
+if "chunks" not in st.session_state:
+    st.session_state.chunks = []
+
+if "index" not in st.session_state:
+    st.session_state.index = None
+
+if "document_name" not in st.session_state:
+    st.session_state.document_name = None
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+
+# ============================================================
+# PDF TEXT EXTRACTION
+# ============================================================
+
+def extract_text_from_pdf(pdf_file):
     """
-    Clean extracted PDF text.
-    """
-
-    text = text.replace("\x00", " ")
-
-    # Remove excessive whitespace
-    text = re.sub(r"[ \t]+", " ", text)
-
-    # Normalize excessive newlines
-    text = re.sub(r"\n{3,}", "\n\n", text)
-
-    return text.strip()
-
-
-def extract_pdf_pages(pdf_bytes: bytes) -> List[Dict]:
-    """
-    Extract text from every PDF page.
+    Extract text from all pages of the uploaded PDF.
 
     Returns:
-        [
-            {
-                "page": 1,
-                "text": "..."
-            },
-            ...
-        ]
+        list of dictionaries containing page number and text.
     """
+
+    pdf_bytes = pdf_file.read()
+
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     pages = []
 
-    pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    for page_number, page in enumerate(document, start=1):
 
-    for page_number, page in enumerate(pdf_document, start=1):
         text = page.get_text("text")
-        text = clean_text(text)
 
-        if text:
+        if text.strip():
             pages.append(
                 {
                     "page": page_number,
-                    "text": text,
+                    "text": text.strip()
                 }
             )
 
-    pdf_document.close()
+    document.close()
 
     return pages
 
 
 # ============================================================
-# Chunking
+# TEXT CHUNKING
 # ============================================================
 
-def split_text(text: str, chunk_size: int = CHUNK_SIZE,
-               overlap: int = CHUNK_OVERLAP) -> List[str]:
+def create_chunks(pages, chunk_size=800, overlap=150):
     """
-    Split text into overlapping word-based chunks.
-    """
+    Split PDF text into overlapping chunks.
 
-    words = text.split()
-
-    if not words:
-        return []
-
-    chunks = []
-
-    start = 0
-
-    while start < len(words):
-        end = min(start + chunk_size, len(words))
-
-        chunk = " ".join(words[start:end]).strip()
-
-        if chunk:
-            chunks.append(chunk)
-
-        if end >= len(words):
-            break
-
-        start = end - overlap
-
-    return chunks
-
-
-def create_chunks(pages: List[Dict]) -> List[Dict]:
-    """
-    Convert PDF pages into chunks while preserving page metadata.
+    Each chunk keeps its original page number.
     """
 
     chunks = []
 
-    for page_data in pages:
-        page_number = page_data["page"]
-        text = page_data["text"]
+    for page in pages:
 
-        page_chunks = split_text(text)
+        text = page["text"]
+        page_number = page["page"]
 
-        for chunk_number, chunk in enumerate(page_chunks, start=1):
-            chunks.append(
-                {
-                    "text": chunk,
-                    "page": page_number,
-                    "chunk": chunk_number,
-                }
-            )
+        start = 0
+
+        while start < len(text):
+
+            end = start + chunk_size
+
+            chunk_text = text[start:end].strip()
+
+            if chunk_text:
+                chunks.append(
+                    {
+                        "text": chunk_text,
+                        "page": page_number
+                    }
+                )
+
+            start += chunk_size - overlap
 
     return chunks
 
 
 # ============================================================
-# FAISS index
+# CREATE FAISS INDEX
 # ============================================================
 
-def build_faiss_index(
-    chunks: List[Dict],
-    embedding_model: SentenceTransformer,
-) -> Tuple[faiss.Index, np.ndarray]:
+def create_faiss_index(chunks):
     """
-    Create normalized embeddings and a FAISS inner-product index.
-
-    Normalized embeddings + inner product ~= cosine similarity.
+    Convert text chunks into embeddings and create
+    a FAISS similarity search index.
     """
 
     texts = [chunk["text"] for chunk in chunks]
@@ -244,461 +209,359 @@ def build_faiss_index(
     embeddings = embedding_model.encode(
         texts,
         convert_to_numpy=True,
-        show_progress_bar=False,
-        normalize_embeddings=True,
+        show_progress_bar=False
     )
 
     embeddings = embeddings.astype("float32")
 
+    # Normalize embeddings so inner product behaves
+    # like cosine similarity.
+    faiss.normalize_L2(embeddings)
+
     dimension = embeddings.shape[1]
 
     index = faiss.IndexFlatIP(dimension)
+
     index.add(embeddings)
 
-    return index, embeddings
+    return index
 
 
-def search_faiss(
-    query: str,
-    index: faiss.Index,
-    chunks: List[Dict],
-    embedding_model: SentenceTransformer,
-    top_k: int = TOP_K,
-) -> List[Dict]:
+# ============================================================
+# RETRIEVE RELEVANT CHUNKS
+# ============================================================
+
+def retrieve_relevant_chunks(query, index, chunks, top_k=4):
     """
-    Retrieve the most relevant chunks for a query.
+    Search FAISS for the most relevant chunks.
     """
 
     query_embedding = embedding_model.encode(
         [query],
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-    ).astype("float32")
+        convert_to_numpy=True
+    )
 
-    scores, indices = index.search(query_embedding, top_k)
+    query_embedding = query_embedding.astype("float32")
+
+    faiss.normalize_L2(query_embedding)
+
+    scores, indices = index.search(
+        query_embedding,
+        min(top_k, len(chunks))
+    )
 
     results = []
 
     for score, idx in zip(scores[0], indices[0]):
 
-        if idx < 0 or idx >= len(chunks):
+        if idx == -1:
             continue
 
-        result = chunks[idx].copy()
-        result["score"] = float(score)
-
-        results.append(result)
+        results.append(
+            {
+                "text": chunks[idx]["text"],
+                "page": chunks[idx]["page"],
+                "score": float(score)
+            }
+        )
 
     return results
 
 
 # ============================================================
-# Prompt construction
+# GENERATE ANSWER WITH GROQ
 # ============================================================
 
-def build_context(results: List[Dict]) -> str:
+def generate_answer(question, retrieved_chunks):
     """
-    Convert retrieved chunks into a context block for the LLM.
+    Generate an answer using only the retrieved HR policy context.
     """
+
+    if not retrieved_chunks:
+        return (
+            "I could not find relevant information in the uploaded "
+            "HR policy document."
+        )
 
     context_parts = []
 
-    for i, result in enumerate(results, start=1):
+    for result in retrieved_chunks:
 
         context_parts.append(
-            f"""
-SOURCE {i}
-Page: {result["page"]}
-Relevance score: {result["score"]:.4f}
-
-{result["text"]}
-""".strip()
+            f"[Page {result['page']}]\n{result['text']}"
         )
 
-    return "\n\n---\n\n".join(context_parts)
+    context = "\n\n".join(context_parts)
 
-
-def build_prompt(question: str, context: str) -> str:
-    """
-    Construct a grounded HR policy prompt.
-    """
-
-    return f"""
+    prompt = f"""
 You are an HR Policy Assistant.
 
-Answer the employee's question using ONLY the HR policy
-information provided in the context below.
+Your task is to answer the user's question using ONLY the
+provided HR policy context.
 
 Rules:
-1. Do not invent HR policies.
-2. Do not use outside knowledge.
-3. If the answer is not present in the provided context,
-   clearly say that the uploaded HR policy does not provide
-   enough information to answer the question.
-4. Give a concise but useful answer.
-5. When possible, mention the relevant policy section or page.
-6. If the policy contains conditions, exceptions, eligibility
-   requirements, or approval requirements, include them.
-7. Do not claim that something is allowed or prohibited unless
-   the policy supports that conclusion.
-8. Treat the document as the source of truth.
 
-HR POLICY CONTEXT
-=================
+1. Do not invent or assume information.
+2. If the answer is not available in the context, clearly say:
+   "The uploaded HR policy does not provide this information."
+3. Give a concise but useful answer.
+4. Mention relevant policy details when available.
+5. Include page references when possible.
+6. Do not use outside knowledge.
+7. If the policy is ambiguous, explain the ambiguity instead
+   of making a decision yourself.
+
+HR POLICY CONTEXT:
+
 {context}
 
-EMPLOYEE QUESTION
-=================
+USER QUESTION:
+
 {question}
 
-ANSWER
-=================
-""".strip()
-
-
-# ============================================================
-# Groq generation
-# ============================================================
-
-def generate_answer(
-    question: str,
-    results: List[Dict],
-    groq_client: Groq,
-) -> str:
-    """
-    Send retrieved context to Groq GPT-OSS 120B.
-    """
-
-    context = build_context(results)
-    prompt = build_prompt(question, context)
+ANSWER:
+"""
 
     response = groq_client.chat.completions.create(
-        model=GROQ_MODEL,
+        model="openai/gpt-oss-120b",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are a careful HR policy question-answering "
-                    "assistant. Ground every answer in the supplied "
-                    "policy context."
-                ),
+                    "You are a reliable HR policy assistant. "
+                    "Always ground your answers in the provided "
+                    "document context."
+                )
             },
             {
                 "role": "user",
-                "content": prompt,
-            },
+                "content": prompt
+            }
         ],
-        max_tokens=800,
-        temperature=0.2,
+        temperature=0.1,
+        max_tokens=800
     )
 
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content
 
 
 # ============================================================
-# Session state
-# ============================================================
-
-def initialize_session_state():
-
-    defaults = {
-        "document_name": None,
-        "pages": None,
-        "chunks": None,
-        "faiss_index": None,
-        "messages": [],
-        "document_ready": False,
-    }
-
-    for key, value in defaults.items():
-
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-
-initialize_session_state()
-
-
-# ============================================================
-# Header
-# ============================================================
-
-st.markdown(
-    '<div class="main-title">📘 HR Policy Assistant</div>',
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    '<div class="subtitle">'
-    "Upload an HR policy PDF and ask questions about its contents."
-    "</div>",
-    unsafe_allow_html=True,
-)
-
-
-# ============================================================
-# Sidebar
+# SIDEBAR
 # ============================================================
 
 with st.sidebar:
 
-    st.header("⚙️ Configuration")
+    st.header("📄 HR Policy Document")
 
-    st.write(f"**LLM:** `{GROQ_MODEL}`")
-    st.write(f"**Embeddings:** `{EMBEDDING_MODEL_NAME}`")
-    st.write(f"**Vector DB:** `FAISS`")
-    st.write(f"**PDF parser:** `PyMuPDF`")
+    uploaded_file = st.file_uploader(
+        "Upload HR Policy PDF",
+        type=["pdf"]
+    )
 
     st.divider()
 
-    uploaded_file = st.file_uploader(
-        "Upload HR policy PDF",
-        type=["pdf"],
-        help="Upload the HR policy document you want to query.",
+    st.markdown("### ⚙️ RAG Settings")
+
+    top_k = st.slider(
+        "Number of retrieved chunks",
+        min_value=2,
+        max_value=8,
+        value=4
     )
 
-    process_button = st.button(
-        "Process PDF",
-        type="primary",
-        use_container_width=True,
+    chunk_size = st.slider(
+        "Chunk size",
+        min_value=400,
+        max_value=1500,
+        value=800,
+        step=100
     )
 
-    if st.button(
-        "Clear document",
-        use_container_width=True,
+    chunk_overlap = st.slider(
+        "Chunk overlap",
+        min_value=50,
+        max_value=300,
+        value=150,
+        step=50
+    )
+
+    st.divider()
+
+    if st.session_state.document_name:
+
+        st.success(
+            f"Loaded:\n{st.session_state.document_name}"
+        )
+
+        st.info(
+            f"📑 Chunks: {len(st.session_state.chunks)}"
+        )
+
+
+# ============================================================
+# PROCESS UPLOADED PDF
+# ============================================================
+
+if uploaded_file is not None:
+
+    if (
+        st.session_state.document_name
+        != uploaded_file.name
     ):
-        st.session_state.document_name = None
-        st.session_state.pages = None
-        st.session_state.chunks = None
-        st.session_state.faiss_index = None
-        st.session_state.messages = []
-        st.session_state.document_ready = False
 
-        st.rerun()
+        with st.spinner("Processing HR policy document..."):
 
+            pages = extract_text_from_pdf(uploaded_file)
 
-# ============================================================
-# Process uploaded PDF
-# ============================================================
-
-if process_button:
-
-    if uploaded_file is None:
-
-        st.warning("Please upload an HR policy PDF first.")
-
-    else:
-
-        with st.spinner("Processing HR policy PDF..."):
-
-            try:
-
-                pdf_bytes = uploaded_file.getvalue()
-
-                pages = extract_pdf_pages(pdf_bytes)
-
-                if not pages:
-                    st.error(
-                        "No readable text was found in the PDF. "
-                        "The document may be image-only/scanned."
-                    )
-                    st.stop()
-
-                chunks = create_chunks(pages)
-
-                if not chunks:
-                    st.error("Could not create text chunks from the PDF.")
-                    st.stop()
-
-                embedding_model = load_embedding_model()
-
-                faiss_index, _ = build_faiss_index(
-                    chunks,
-                    embedding_model,
-                )
-
-                st.session_state.document_name = uploaded_file.name
-                st.session_state.pages = pages
-                st.session_state.chunks = chunks
-                st.session_state.faiss_index = faiss_index
-                st.session_state.messages = []
-                st.session_state.document_ready = True
-
-                st.success(
-                    f"Document processed successfully: "
-                    f"{len(pages)} pages, {len(chunks)} chunks."
-                )
-
-            except Exception as e:
+            if not pages:
 
                 st.error(
-                    f"An error occurred while processing the PDF: {e}"
+                    "No readable text was found in this PDF. "
+                    "The document may be scanned/image-based."
                 )
 
+                st.stop()
+
+            chunks = create_chunks(
+                pages,
+                chunk_size=chunk_size,
+                overlap=chunk_overlap
+            )
+
+            index = create_faiss_index(chunks)
+
+            st.session_state.chunks = chunks
+            st.session_state.index = index
+            st.session_state.document_name = uploaded_file.name
+            st.session_state.chat_history = []
+
+        st.success(
+            f"✅ Successfully processed "
+            f"'{uploaded_file.name}'"
+        )
+
+        st.info(
+            f"Extracted {len(pages)} pages and "
+            f"created {len(chunks)} text chunks."
+        )
+
 
 # ============================================================
-# Document status
+# API KEY CHECK
 # ============================================================
-
-if st.session_state.document_ready:
-
-    st.info(
-        f"📄 **{st.session_state.document_name}**  |  "
-        f"{len(st.session_state.pages)} pages  |  "
-        f"{len(st.session_state.chunks)} chunks indexed"
-    )
-
-
-# ============================================================
-# API key check
-# ============================================================
-
-groq_client = get_groq_client()
 
 if groq_client is None:
 
     st.warning(
-        "Groq API key is not configured. "
-        "Add `GROQ_API_KEY` to Streamlit Secrets before asking questions."
+        "⚠️ Groq API key is not configured. "
+        "Add GROQ_API_KEY to Streamlit Secrets."
     )
 
-
-# ============================================================
-# Chat history
-# ============================================================
-
-for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-        if message["role"] == "assistant" and message.get("sources"):
-
-            with st.expander("📚 Sources"):
-
-                for source in message["sources"]:
-
-                    st.markdown(
-                        f"""
-                        **Page {source["page"]}**
-                        
-                        Relevance: `{source["score"]:.4f}`
-                        
-                        > {source["text"]}
-                        """
-                    )
+    st.stop()
 
 
 # ============================================================
-# Question input
+# MAIN CHAT AREA
 # ============================================================
 
-question = st.chat_input(
-    "Ask a question about the HR policy..."
-)
+if st.session_state.index is None:
 
-
-if question:
-
-    if not st.session_state.document_ready:
-
-        st.warning(
-            "Please upload and process an HR policy PDF before asking questions."
-        )
-        st.stop()
-
-    if groq_client is None:
-
-        st.error(
-            "Groq API key is missing. Configure `GROQ_API_KEY` "
-            "in Streamlit Secrets."
-        )
-        st.stop()
-
-    # Display user question
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": question,
-        }
+    st.info(
+        "👈 Upload an HR policy PDF from the sidebar "
+        "to start asking questions."
     )
 
-    with st.chat_message("user"):
-        st.markdown(question)
+    st.markdown(
+        """
+        ### Example questions
 
-    # Retrieve relevant chunks
-    with st.chat_message("assistant"):
+        - What is the annual leave policy?
+        - How many sick leaves are employees allowed?
+        - What is the maternity leave policy?
+        - What is the probation period?
+        - What is the notice period?
+        - Can employees work remotely?
+        - What are the working hours?
+        """
+    )
 
-        with st.spinner("Searching the HR policy..."):
+else:
 
-            embedding_model = load_embedding_model()
+    st.subheader("💬 Ask about the HR policy")
 
-            results = search_faiss(
-                query=question,
-                index=st.session_state.faiss_index,
-                chunks=st.session_state.chunks,
-                embedding_model=embedding_model,
-                top_k=TOP_K,
+    # Display previous messages
+    for message in st.session_state.chat_history:
+
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    question = st.chat_input(
+        "Ask a question about the HR policy..."
+    )
+
+    if question:
+
+        # Display user question
+        with st.chat_message("user"):
+            st.markdown(question)
+
+        st.session_state.chat_history.append(
+            {
+                "role": "user",
+                "content": question
+            }
+        )
+
+        # Retrieve relevant chunks
+        with st.spinner("Searching HR policy..."):
+
+            retrieved_chunks = retrieve_relevant_chunks(
+                question,
+                st.session_state.index,
+                st.session_state.chunks,
+                top_k=top_k
             )
 
-        if not results:
-
-            answer = (
-                "I could not find relevant information in the "
-                "uploaded HR policy."
-            )
-
-            sources = []
-
-        else:
+        # Generate answer
+        with st.chat_message("assistant"):
 
             with st.spinner("Generating answer..."):
 
-                try:
+                answer = generate_answer(
+                    question,
+                    retrieved_chunks
+                )
 
-                    answer = generate_answer(
-                        question=question,
-                        results=results,
-                        groq_client=groq_client,
-                    )
+            st.markdown(
+                f'<div class="answer-box">{answer}</div>',
+                unsafe_allow_html=True
+            )
 
-                    sources = results
+            # Show sources
+            with st.expander("📚 View retrieved sources"):
 
-                except Exception as e:
-
-                    answer = (
-                        "I encountered an error while generating "
-                        f"the answer: {e}"
-                    )
-
-                    sources = []
-
-        st.markdown(answer)
-
-        if sources:
-
-            with st.expander("📚 Sources"):
-
-                for source in sources:
+                for i, result in enumerate(
+                    retrieved_chunks,
+                    start=1
+                ):
 
                     st.markdown(
                         f"""
-                        **Page {source["page"]}**
-                        
-                        Relevance: `{source["score"]:.4f}`
-                        
-                        > {source["text"]}
-                        """
+                        **Source {i} — Page {result['page']}**
+
+                        Similarity score:
+                        `{result['score']:.3f}`
+
+                        <div class="source-box">
+                        {result['text']}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
                     )
 
-    # Save assistant response
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer,
-            "sources": sources,
-        }
-    )
-```
-
-This uses the official Groq Python client and the `openai/gpt-oss-120b` model ID documented by Groq.
+        st.session_state.chat_history.append(
+            {
+                "role": "assistant",
+                "content": answer
+            }
+        )
