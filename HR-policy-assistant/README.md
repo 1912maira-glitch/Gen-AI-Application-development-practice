@@ -177,17 +177,4 @@ This project demonstrates practical skills in:
 - Cloud deployment
 - API key and secrets management
 
-## 🚀 Future Improvements
-
-- 🔎 OCR support for scanned PDFs
-- 📚 Multiple PDF support
-- 💬 Conversational memory
-- 🔍 Hybrid keyword and semantic search
-- 🧠 Reranking of retrieved chunks
-- 💾 Persistent vector storage
-- 📑 Improved document citations
-- 📊 RAG evaluation metrics
-- 🔐 User authentication
-- 📥 Chat and answer export
-
 🚀 Live Application Demo: https://gen-ai-application-development-hr-policy-assistant.streamlit.app/
